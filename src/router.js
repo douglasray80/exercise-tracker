@@ -7,6 +7,13 @@ const Router = express.Router()
 
 const isValidDate = date => moment(date).isValid()
 
+const getValidUser = (req, res, user, callback) =>
+	User.findById(user)
+		.select('username _id')
+		.exec((err, data) => {
+			err ? err : callback(data)
+		})
+
 // I can create a user by posting form data username to /api/exercise/new-user
 // and an object with username and id will be returned.
 Router.post('/new-user', (req, res, next) => {
@@ -36,23 +43,39 @@ Router.get('/users', (req, res, next) => {
 // and date (optional) to /api/exercise/add. If no date supplied it will use current date.
 // Return the the user object with the exercise fields added.
 Router.post('/add', (req, res, next) => {
-	const { userId, description, duration } = req.body
-	const date = req.body.date ? new Date(req.body.date) : new Date()
+	const { userId, description, duration, date } = req.body
 
 	if (!userId || !description || !duration) {
-		return console.log('empty fields')
+		res.json('Error: You have not entered any information.')
 	}
 
-	let user
-	User.findById(userId)
-		.select('username _id')
-		.exec((err, data) => {
-			err ? console.log(err) : (user = data)
+	getValidUser(req, res, userId, user => {
+		let datetime
+		if (!date) {
+			datetime = moment().format('YYYY-MM-DD')
+		} else if (!isValidDate(date)) {
+			res.json('Error: Invalid date')
+		} else {
+			datetime = moment(date).format('YYYY-MM-DD')
+		}
+		const exercise = new Exercise({
+			userId,
+			description,
+			duration,
+			date: datetime
 		})
-	const exercise = new Exercise({ userId, description, duration, date })
 
-	exercise.save((err, data) => {
-		console.log({ ...data, ...user })
+		exercise.save((err, data) => {
+			err
+				? res.json('Error: There was an error saving your exercise')
+				: res.json({
+						_id: user._id,
+						username: user.username,
+						description: data.description,
+						duration: data.duration,
+						date: moment(data.date).format('ddd, DD MMM YYYY')
+				  })
+		})
 	})
 })
 
