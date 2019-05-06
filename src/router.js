@@ -8,11 +8,9 @@ const Router = express.Router()
 const isValidDate = date => moment(date).isValid()
 
 const getValidUser = (req, res, user, callback) =>
-	User.findById(user)
-		.select('username _id')
-		.exec((err, data) => {
-			err ? err : callback(data)
-		})
+	User.findById(user, (err, data) => {
+		err ? res.json('Error: Invalid User ID') : callback(data)
+	})
 
 // I can create a user by posting form data username to /api/exercise/new-user
 // and an object with username and id will be returned.
@@ -49,15 +47,16 @@ Router.post('/add', (req, res, next) => {
 		res.json('Error: You have not entered any information.')
 	}
 
+	let datetime
+	if (!date) {
+		datetime = new Date()
+	} else if (!isValidDate(date)) {
+		return res.json('Error: Invalid date')
+	} else {
+		datetime = new Date(date)
+	}
+
 	getValidUser(req, res, userId, user => {
-		let datetime
-		if (!date) {
-			datetime = moment().format('YYYY-MM-DD')
-		} else if (!isValidDate(date)) {
-			res.json('Error: Invalid date')
-		} else {
-			datetime = moment(date).format('YYYY-MM-DD')
-		}
 		const exercise = new Exercise({
 			userId,
 			description,
@@ -81,7 +80,23 @@ Router.post('/add', (req, res, next) => {
 
 // I can retrieve a full exercise log of any user by getting /api/exercise/log with a parameter of userId(\_id).
 // Return will be the user object with added array log and count (total exercise count).
-
 // I can retrieve part of the log of any user by also passing along optional parameters of from & to or limit. (Date format yyyy-mm-dd, limit = int)
+Router.get('/log', (req, res, next) => {
+	const { userId, from, to, limit } = req.query
+
+	getValidUser(req, res, userId, user => {
+		Exercise.find({ userId: user._id })
+			.limit(parseInt(limit))
+			.select('-_id description duration date')
+			.exec((err, data) => {
+				res.json({
+					_id: user._id,
+					username: user.username,
+					count: data.length,
+					log: data
+				})
+			})
+	})
+})
 
 export default Router
