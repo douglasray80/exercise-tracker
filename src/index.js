@@ -3,7 +3,7 @@ import bodyParser from 'body-parser'
 import mongoose from 'mongoose'
 import cors from 'cors'
 
-import Router from './router'
+import router from './router'
 
 const app = express()
 
@@ -16,7 +16,7 @@ app.use(express.static('public'))
 
 app.get('/', (req, res) => res.sendFile(__dirname + 'index.html'))
 
-app.use('/api/exercise', Router)
+app.use('/api/exercise', router)
 
 mongoose.connect(
 	process.env.MONGO_URI,
